@@ -116,7 +116,24 @@ export default function KitchenRecipeCalculator() {
     })).sort((a, b) => a.name.localeCompare(b.name));
   };
 
+  // Ordenar lista de compras: los tachados al final
   const aggregatedList = getAggregatedIngredients();
+  const sortedAggregatedList = [...aggregatedList].sort((a, b) => {
+    const aChecked = purchasedIngredients[a.name] ? 1 : 0;
+    const bChecked = purchasedIngredients[b.name] ? 1 : 0;
+    if (aChecked !== bChecked) return aChecked - bChecked;
+    return 0; // Mantiene el orden alfabético original si ambos tienen el mismo estado
+  });
+
+  // Ordenar ingredientes de la receta principal: los tachados al final
+  const ingredientsWithOriginalIndex = activeRecipe.ingredients.map((ing, idx) => ({ ...ing, originalIndex: idx }));
+  const sortedRecipeIngredients = [...ingredientsWithOriginalIndex].sort((a, b) => {
+    const aChecked = checkedItems[a.originalIndex] ? 1 : 0;
+    const bChecked = checkedItems[b.originalIndex] ? 1 : 0;
+    if (aChecked !== bChecked) return aChecked - bChecked;
+    return a.originalIndex - b.originalIndex; // Mantiene el orden de la receta original si ambos tienen el mismo estado
+  });
+
   const quickMultipliers = [0.5, 1, 1.5, 2, 3];
 
   return (
@@ -246,13 +263,13 @@ export default function KitchenRecipeCalculator() {
                     <h3 className="font-bold text-slate-700 text-lg">Totales para Proveeduría</h3>
                   </div>
                   <div className="grid gap-2">
-                    {aggregatedList.map((ing, index) => {
+                    {sortedAggregatedList.map((ing) => {
                       const isToggled = purchasedIngredients[ing.name];
                       const displayAmount = ing.amount % 1 === 0 ? ing.amount : ing.amount.toFixed(2);
                       
                       return (
                         <div 
-                          key={index}
+                          key={ing.name} // Usar el nombre como key para que la animación/ordenamiento sea fluido
                           onClick={() => togglePurchased(ing.name)}
                           className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all select-none ${
                             isToggled ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-slate-100 shadow-sm hover:border-orange-300'
@@ -294,7 +311,7 @@ export default function KitchenRecipeCalculator() {
         </div>
       </header>
 
-      {/* --- MAIN CONTENT AREA (Tu diseño intacto) --- */}
+      {/* --- MAIN CONTENT AREA --- */}
       <main className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
         
         {/* LEFT COLUMN: CONTROLS */}
@@ -414,14 +431,15 @@ export default function KitchenRecipeCalculator() {
               </div>
               
               <ul className="space-y-3">
-                {activeRecipe.ingredients.map((ing, index) => {
-                  const isChecked = checkedItems[index];
+                {sortedRecipeIngredients.map((ing) => {
+                  const originalIdx = ing.originalIndex;
+                  const isChecked = checkedItems[originalIdx];
                   const calculatedAmount = formatAmount(ing.baseAmount);
                   
                   return (
                     <li 
-                      key={index}
-                      onClick={() => toggleCheck(index)}
+                      key={originalIdx} // Usar el índice original como key para que React maneje el ordenamiento visual
+                      onClick={() => toggleCheck(originalIdx)}
                       className={`
                         flex items-center justify-between p-4 rounded-xl cursor-pointer border-2 transition-all select-none
                         ${isChecked 
