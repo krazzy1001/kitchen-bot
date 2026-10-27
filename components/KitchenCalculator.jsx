@@ -1,192 +1,264 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Minus, Plus, CheckCircle2, Circle, ChefHat } from 'lucide-react';
 
-// 1. AQUÍ AGREGAS TUS RECETAS (Nota los nuevos campos 'tip' y 'steps')
-const recipes = [
+import React, { useState, useEffect } from 'react';
+import { ChefHat, Calculator, Scale, CheckCircle2, Circle, Utensils, RefreshCcw } from 'lucide-react';
+
+// --- BASE DE DATOS DE RECETAS (MOCK DATA) ---
+const RECIPES = [
   {
-    id: '1',
-    name: 'Masa de Yuca (Crust para Pie)',
-    category: 'Panadería Vegana',
-    tip: 'Asegúrate de que el agua esté bien fría para evitar que el aceite de coco se derrita antes de hornear.',
+    id: 'vegan-pie',
+    name: 'Vegan Chocolate Tofu Pie with Yucca Crust',
+    description: 'Postre sin lácteos. Base crujiente de yuca y relleno cremoso de tofu silken y chocolate oscuro.',
     ingredients: [
-      { name: 'Harina de yuca', baseQuantity: 500, unit: 'g' },
-      { name: 'Aceite de coco', baseQuantity: 150, unit: 'g' },
-      { name: 'Agua fría', baseQuantity: 100, unit: 'ml' },
-      { name: 'Sal', baseQuantity: 5, unit: 'g' }
-    ],
-    steps: [
-      'Pesar y mezclar la harina de yuca con la sal en un bowl grande.',
-      'Incorporar el aceite de coco frotando con los dedos hasta obtener una textura arenosa.',
-      'Agregar el agua fría poco a poco mientras amasas suavemente.',
-      'Formar una bola, envolver y refrigerar por 15 minutos antes de estirar.'
+      { name: 'Masa de yuca procesada', baseAmount: 500, unit: 'g' },
+      { name: 'Tofu Silken (firmeza media)', baseAmount: 350, unit: 'g' },
+      { name: 'Chocolate oscuro (70% cacao)', baseAmount: 200, unit: 'g' },
+      { name: 'Sirope de Maple', baseAmount: 100, unit: 'ml' },
+      { name: 'Aceite de coco derretido', baseAmount: 50, unit: 'g' },
+      { name: 'Extracto de vainilla', baseAmount: 10, unit: 'ml' },
+      { name: 'Pizca de sal marina', baseAmount: 2, unit: 'g' }
     ]
   },
   {
-    id: '2',
-    name: 'Base de Caldo Fat Noodle',
-    category: 'Salsas y Caldos',
-    tip: 'No dejes que el caldo hierva a borbotones fuertes para que no se enturbie.',
+    id: 'pad-thai',
+    name: 'Pad Thai',
+    description: 'Clásico de fideos de arroz salteados, salsa agridulce de tamarindo y maní tostado.',
     ingredients: [
-      { name: 'Agua filtrada', baseQuantity: 4, unit: 'L' },
-      { name: 'Salsa de soya', baseQuantity: 500, unit: 'ml' },
-      { name: 'Jengibre fresco', baseQuantity: 100, unit: 'g' },
-      { name: 'Ajo pelado', baseQuantity: 50, unit: 'g' }
-    ],
-    steps: [
-      'Lavar y machacar ligeramente el jengibre y el ajo (sin picar).',
-      'Colocar el agua filtrada en la olla grande a fuego medio.',
-      'Añadir la salsa de soya, el jengibre y el ajo.',
-      'Llevar a un hervor suave, bajar el fuego al mínimo y cocinar por 45 minutos.',
-      'Colar y almacenar correctamente etiquetado.'
+      { name: 'Fideos de arroz (secos)', baseAmount: 200, unit: 'g' },
+      { name: 'Proteína (Tofu firme o Pollo)', baseAmount: 150, unit: 'g' },
+      { name: 'Pasta de Tamarindo', baseAmount: 45, unit: 'ml' },
+      { name: 'Salsa de soya (o de pescado)', baseAmount: 30, unit: 'ml' },
+      { name: 'Azúcar de palma', baseAmount: 20, unit: 'g' },
+      { name: 'Brotes de soya', baseAmount: 100, unit: 'g' },
+      { name: 'Maní tostado triturado', baseAmount: 30, unit: 'g' },
+      { name: 'Cebollín fresco', baseAmount: 15, unit: 'g' }
+    ]
+  },
+  {
+    id: 'house-bread',
+    name: 'House Bread (Pan de la Casa)',
+    description: 'Masa madre / Pan rústico de fermentación lenta.',
+    ingredients: [
+      { name: 'Harina de fuerza', baseAmount: 1000, unit: 'g' },
+      { name: 'Agua filtrada', baseAmount: 700, unit: 'ml' },
+      { name: 'Sal fina', baseAmount: 20, unit: 'g' },
+      { name: 'Masa madre activa (o Levadura)', baseAmount: 200, unit: 'g' }
     ]
   }
 ];
 
-export default function KitchenCalculator() {
-  const [selectedRecipeId, setSelectedRecipeId] = useState(recipes[0].id);
+export default function KitchenRecipeCalculator() {
+  // Estado para manejar la receta seleccionada, el multiplicador y la lista de verificación
+  const [selectedRecipeId, setSelectedRecipeId] = useState(RECIPES[0].id);
   const [multiplier, setMultiplier] = useState(1);
-  const [toggledIngredients, setToggledIngredients] = useState({});
-  const [toggledSteps, setToggledSteps] = useState({}); // Nuevo estado para los pasos
+  const [checkedItems, setCheckedItems] = useState({});
 
-  const selectedRecipe = recipes.find(r => r.id === selectedRecipeId);
+  const activeRecipe = RECIPES.find(r => r.id === selectedRecipeId) || RECIPES[0];
 
-  // Reiniciar los tachados si cambian de receta
+  // Reiniciar la lista de verificación cuando cambia la receta
   useEffect(() => {
-    setToggledIngredients({});
-    setToggledSteps({});
+    setCheckedItems({});
   }, [selectedRecipeId]);
 
-  const toggleIngredient = (index) => {
-    setToggledIngredients(prev => ({ ...prev, [index]: !prev[index] }));
+  // Manejar el toggle (marcar/desmarcar) de ingredientes
+  const toggleCheck = (index) => {
+    setCheckedItems(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
   };
 
-  const toggleStep = (index) => {
-    setToggledSteps(prev => ({ ...prev, [index]: !prev[index] }));
+  // Formatear cantidades para evitar muchos decimales innecesarios (ej: 1.50 -> 1.5)
+  const formatAmount = (amount) => {
+    const scaled = amount * multiplier;
+    // Redondear a máximo 2 decimales y quitar ceros innecesarios
+    return parseFloat(scaled.toFixed(2));
   };
-
-  const quickMultipliers = [0.5, 1, 1.5, 2, 3];
 
   return (
-    <div className="max-w-3xl mx-auto p-4 md:p-6 bg-white shadow-lg rounded-xl mt-4">
-      {/* Encabezado y Selector */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-4 text-gray-800 flex items-center gap-2">
-          <ChefHat className="text-orange-500" />
-          Calculadora de Recetas
-        </h1>
-        <select 
-          className="w-full p-4 text-lg border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
-          value={selectedRecipeId}
-          onChange={(e) => setSelectedRecipeId(e.target.value)}
-        >
-          {recipes.map(recipe => (
-            <option key={recipe.id} value={recipe.id}>
-              {recipe.name} ({recipe.category})
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Controles de Multiplicador */}
-      <div className="bg-orange-50 p-4 rounded-xl mb-6">
-        <div className="text-center mb-4">
-          <span className="text-sm font-semibold text-orange-800 uppercase tracking-wider">Multiplicador</span>
-          <div className="text-4xl font-bold text-orange-600 mt-1">{multiplier}x</div>
+    <div className="min-h-screen bg-slate-100 text-slate-800 font-sans selection:bg-orange-200">
+      
+      {/* HEADER TOP BAR */}
+      <header className="bg-slate-900 text-white p-4 shadow-md flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-3">
+          <ChefHat size={32} className="text-orange-400" />
+          <h1 className="text-2xl font-bold tracking-tight">Kitchen Prep Calculator</h1>
         </div>
+        <div className="text-slate-400 text-sm hidden sm:block">
+          Precisión y Estandarización
+        </div>
+      </header>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
         
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-          {quickMultipliers.map(mult => (
-            <button
-              key={mult}
-              onClick={() => setMultiplier(mult)}
-              className={`flex-1 py-3 px-4 rounded-lg font-bold text-lg transition-colors ${
-                multiplier === mult 
-                  ? 'bg-orange-500 text-white' 
-                  : 'bg-white text-orange-600 border border-orange-200'
-              }`}
-            >
-              {mult}x
-            </button>
-          ))}
-        </div>
-
-        <input 
-          type="range" 
-          min="0.5" 
-          max="5" 
-          step="0.5" 
-          value={multiplier}
-          onChange={(e) => setMultiplier(parseFloat(e.target.value))}
-          className="w-full accent-orange-500 h-2 bg-orange-200 rounded-lg appearance-none cursor-pointer"
-        />
-      </div>
-
-      {/* Lista de Ingredientes */}
-      <div className="mb-6">
-        <h2 className="text-xl font-bold mb-3 text-gray-800">Ingredientes Ajustados</h2>
-        <div className="grid gap-2">
-          {selectedRecipe.ingredients.map((ing, index) => {
-            const isToggled = toggledIngredients[index];
-            const calculatedQuantity = (ing.baseQuantity * multiplier).toFixed(1).replace(/\.0$/, '');
-            
-            return (
-              <div 
-                key={index}
-                onClick={() => toggleIngredient(index)}
-                className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                  isToggled ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100 hover:border-orange-200'
-                }`}
+        {/* LEFT COLUMN: CONTROLS */}
+        <section className="lg:col-span-5 flex flex-col gap-6">
+          
+          {/* SELECCIÓN DE RECETA */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-700">
+              <Utensils size={20} />
+              1. Seleccionar Receta
+            </h2>
+            <div className="relative">
+              <select 
+                className="w-full appearance-none bg-slate-50 border-2 border-slate-200 text-slate-800 text-lg rounded-xl px-4 py-4 pr-10 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all font-medium cursor-pointer"
+                value={selectedRecipeId}
+                onChange={(e) => setSelectedRecipeId(e.target.value)}
               >
-                {isToggled ? <CheckCircle2 className="w-6 h-6 text-green-500 mr-3" /> : <Circle className="w-6 h-6 text-gray-300 mr-3" />}
-                <div className={`flex-1 text-lg ${isToggled ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                  {ing.name}
-                </div>
-                <div className={`text-xl font-bold ${isToggled ? 'text-gray-400' : 'text-orange-600'}`}>
-                  {calculatedQuantity} {ing.unit}
+                {RECIPES.map(recipe => (
+                  <option key={recipe.id} value={recipe.id}>
+                    {recipe.name}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                <svg className="fill-current h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                </svg>
+              </div>
+            </div>
+            <p className="mt-4 text-sm text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100">
+              {activeRecipe.description}
+            </p>
+          </div>
+
+          {/* ESCALADOR / MULTIPLICADOR */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-700">
+              <Calculator size={20} />
+              2. Ajustar Cantidad
+            </h2>
+            
+            {/* Valor Actual Display */}
+            <div className="flex items-center justify-center mb-6">
+              <div className="text-6xl font-black text-orange-600 tracking-tighter">
+                {multiplier}x
+              </div>
+            </div>
+
+            {/* Slider de precisión */}
+            <div className="mb-8 px-2">
+              <label className="text-sm font-medium text-slate-500 mb-2 block">Ajuste fino:</label>
+              <input 
+                type="range" 
+                min="0.1" 
+                max="5" 
+                step="0.1" 
+                value={multiplier}
+                onChange={(e) => setMultiplier(parseFloat(e.target.value))}
+                className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-orange-600 focus:outline-none focus:ring-4 focus:ring-orange-500/30"
+              />
+              <div className="flex justify-between text-xs text-slate-400 mt-2 font-medium">
+                <span>0.1x</span>
+                <span>5.0x</span>
+              </div>
+            </div>
+
+            {/* Botones rápidos (Mejor para uso táctil en cocina) */}
+            <div>
+              <label className="text-sm font-medium text-slate-500 mb-3 block">Acciones Rápidas:</label>
+              <div className="grid grid-cols-5 gap-2">
+                {[0.5, 1, 1.5, 2, 3].map((val) => (
+                  <button
+                    key={val}
+                    onClick={() => setMultiplier(val)}
+                    className={`py-3 rounded-xl text-lg font-bold transition-all border-b-4 active:border-b-0 active:translate-y-1 ${
+                      multiplier === val 
+                        ? 'bg-orange-500 text-white border-orange-700 shadow-md' 
+                        : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    {val}x
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+          </div>
+        </section>
+
+        {/* RIGHT COLUMN: RESULT RECIPE */}
+        <section className="lg:col-span-7">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden h-full flex flex-col">
+            
+            {/* Cabecera de la receta */}
+            <div className="bg-slate-50 border-b border-slate-200 p-6 flex items-start justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800 mb-1">{activeRecipe.name}</h2>
+                <div className="flex items-center gap-2 text-orange-600 font-semibold bg-orange-100 px-3 py-1 rounded-full inline-flex">
+                  <Scale size={16} />
+                  <span>Escalado a {multiplier}x</span>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
+              <button 
+                onClick={() => setCheckedItems({})}
+                className="p-3 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-xl transition-colors flex flex-col items-center gap-1"
+                title="Reiniciar Checklist"
+              >
+                <RefreshCcw size={20} />
+                <span className="text-xs font-medium">Reset</span>
+              </button>
+            </div>
 
-      {/* Tip de Cocina */}
-      {selectedRecipe.tip && (
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6">
-          <p className="text-blue-800 text-sm md:text-base"><strong>Tip:</strong> {selectedRecipe.tip}</p>
-        </div>
-      )}
-
-      {/* Paso a Paso de la Preparación */}
-      {selectedRecipe.steps && (
-        <div>
-          <h2 className="text-xl font-bold mb-3 text-gray-800">Preparación</h2>
-          <div className="grid gap-2">
-            {selectedRecipe.steps.map((step, index) => {
-              const isToggled = toggledSteps[index];
-              return (
-                <div 
-                  key={index}
-                  onClick={() => toggleStep(index)}
-                  className={`flex items-start p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    isToggled ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100 hover:border-orange-200'
-                  }`}
-                >
-                  <div className="mt-0.5">
-                    {isToggled ? <CheckCircle2 className="w-6 h-6 text-green-500 mr-3" /> : <Circle className="w-6 h-6 text-gray-300 mr-3" />}
-                  </div>
-                  <div className={`flex-1 text-base md:text-lg ${isToggled ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                    <span className="font-bold mr-2">{index + 1}.</span>
-                    {step}
-                  </div>
-                </div>
-              );
-            })}
+            {/* Lista de ingredientes */}
+            <div className="p-6 flex-1 overflow-y-auto">
+              <div className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 px-2">
+                Ingredientes a pesar
+              </div>
+              
+              <ul className="space-y-3">
+                {activeRecipe.ingredients.map((ing, index) => {
+                  const isChecked = checkedItems[index];
+                  const calculatedAmount = formatAmount(ing.baseAmount);
+                  
+                  return (
+                    <li 
+                      key={index}
+                      onClick={() => toggleCheck(index)}
+                      className={`
+                        flex items-center justify-between p-4 rounded-xl cursor-pointer border-2 transition-all select-none
+                        ${isChecked 
+                          ? 'bg-green-50 border-green-200 opacity-60' 
+                          : 'bg-white border-slate-100 hover:border-orange-300 shadow-sm'}
+                      `}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`${isChecked ? 'text-green-500' : 'text-slate-300'}`}>
+                          {isChecked ? <CheckCircle2 size={28} /> : <Circle size={28} />}
+                        </div>
+                        <span className={`text-lg font-medium transition-all ${isChecked ? 'line-through text-slate-500' : 'text-slate-800'}`}>
+                          {ing.name}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-baseline gap-1 text-right min-w-[120px] justify-end">
+                        <span className={`text-2xl font-bold tabular-nums ${isChecked ? 'text-slate-500' : 'text-orange-600'}`}>
+                          {calculatedAmount}
+                        </span>
+                        <span className={`text-sm font-semibold ${isChecked ? 'text-slate-400' : 'text-slate-500'}`}>
+                          {ing.unit}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              
+              <div className="mt-8 p-4 bg-blue-50 text-blue-800 rounded-xl border border-blue-200 text-sm flex gap-3">
+                <div className="mt-0.5">ℹ️</div>
+                <p>
+                  <strong>Tip de cocina:</strong> Toca cada ingrediente en la lista conforme lo vayas pesando para mantener el orden en tu estación de trabajo (Mise en place).
+                </p>
+              </div>
+              
+            </div>
           </div>
-        </div>
-      )}
+        </section>
+        
+      </main>
     </div>
   );
 }
